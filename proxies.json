@@ -1,0 +1,7 @@
+{
+  "slots": [
+    {"name": "direct", "server": null, "note": "直连(国内站)"},
+    {"name": "clash", "server": "http://127.0.0.1:7897", "note": "Clash 本地代理(境外站)"}
+  ],
+  "cooldown_seconds": 300
+}
