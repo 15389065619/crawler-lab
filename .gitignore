@@ -1,0 +1,10 @@
+# 密钥: 飞书 webhook 绝不入库 (模板见 feishu_config.example.json)
+feishu_config.json
+
+# 运行产物
+monitor.db
+geo_report.json
+corpus/
+reports/
+__pycache__/
+*.pyc
