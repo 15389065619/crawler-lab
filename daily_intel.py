@@ -50,13 +50,13 @@ def extract_body(markdown: str, min_len=60) -> str:
     best = max(runs, key=lambda r: sum(len(x) for x in r))
     return " ".join(best)
 
-def new_repos(con, url):
-    rows = con.execute("SELECT DISTINCT ts FROM snapshots WHERE url=? ORDER BY ts DESC LIMIT 2", (url,)).fetchall()
-    if len(rows) < 2:
+def new_repos(st, url):
+    ts_list = st.ts_list(url)  # v2 存储层: MySQL/SQLite 同一套 API
+    if len(ts_list) < 2:
         return []
-    ts_new, ts_old = rows[0][0], rows[1][0]
-    old = {h for (h,) in con.execute("SELECT href FROM snapshots WHERE url=? AND ts=?", (url, ts_old))}
-    cur = con.execute("SELECT rank,title,href FROM snapshots WHERE url=? AND ts=? ORDER BY rank", (url, ts_new)).fetchall()
+    ts_new, ts_old = ts_list[0], ts_list[1]
+    old = {h for _, _, h in st.rows_at(url, ts_old)}
+    cur = st.rows_at(url, ts_new)
     return [(r, t, h) for r, t, h in cur if h and h not in old]
 
 async def crawl_repos(targets, corpus_dir):
@@ -143,12 +143,12 @@ if __name__ == "__main__":
 
     # ---- Stage 1: Scrapling 监控 ----
     print("=" * 60, "\n[Stage 1] Scrapling 监控 GitHub Trending")
-    con = mw.init_db()
-    mw.one_round(mw.DEFAULTS["url"], mw.DEFAULTS["sel"], con)
-    news = new_repos(con, mw.DEFAULTS["url"])
-    all_rows = con.execute(
-        "SELECT rank,title,href FROM snapshots WHERE url=? AND ts=(SELECT max(ts) FROM snapshots WHERE url=?) ORDER BY rank LIMIT 5",
-        (mw.DEFAULTS["url"], mw.DEFAULTS["url"])).fetchall()
+    st = mw.open_storage("auto")     # v2 存储层: MySQL 优先, 失败自动降级 SQLite
+    pool = mw.ProxyPool()
+    mw.one_round(mw.DEFAULTS["url"], mw.DEFAULTS["sel"], st, pool)
+    news = new_repos(st, mw.DEFAULTS["url"])
+    ts_list = st.ts_list(mw.DEFAULTS["url"])
+    all_rows = st.rows_at(mw.DEFAULTS["url"], ts_list[0]) if ts_list else []
     if news:
         targets = [(f"新上榜 #{r} {t}", "https://github.com/" + h.strip("/")) for r, t, h in news]
     else:

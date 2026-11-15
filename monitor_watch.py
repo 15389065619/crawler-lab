@@ -126,6 +126,16 @@ class MySQLStorage:
         c.execute("SELECT max(ts) FROM snapshots WHERE url=%s", (url,))
         v = c.fetchone()[0]; c.close(); return v
 
+    def ts_list(self, url):
+        c = self.conn.cursor()
+        c.execute("SELECT DISTINCT ts FROM snapshots WHERE url=%s ORDER BY ts DESC", (url,))
+        v = [r[0] for r in c.fetchall()]; c.close(); return v
+
+    def rows_at(self, url, ts):
+        c = self.conn.cursor()
+        c.execute("SELECT rank_no,title,href FROM snapshots WHERE url=%s AND ts=%s ORDER BY rank_no", (url, ts))
+        v = c.fetchall(); c.close(); return v
+
     def snapshot_map(self, url, ts):
         c = self.conn.cursor()
         c.execute("SELECT rank_no,title,href FROM snapshots WHERE url=%s AND ts=%s", (url, ts))
@@ -173,6 +183,14 @@ class SQLiteStorage:
 
     def max_ts(self, url):
         return self.conn.execute("SELECT max(ts) FROM snapshots WHERE url=?", (url,)).fetchone()[0]
+
+    def ts_list(self, url):
+        return [r[0] for r in self.conn.execute(
+            "SELECT DISTINCT ts FROM snapshots WHERE url=? ORDER BY ts DESC", (url,))]
+
+    def rows_at(self, url, ts):
+        return [(r, t, h) for r, t, h in self.conn.execute(
+            "SELECT rank,title,href FROM snapshots WHERE url=? AND ts=? ORDER BY rank", (url, ts))]
 
     def snapshot_map(self, url, ts):
         return {h: (r, t) for r, t, h in self.conn.execute(
